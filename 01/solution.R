@@ -26,43 +26,30 @@ numbers <- c(
 numbers_lk <- setNames(as.character(1:9), numbers)
 
 # === function ================================
-get_number <- function(patterns, strs, which = c("min", "max")) {
-  op_1 <- switch(
-    match.arg(which),
-    min = min,
-    max = max,
-  )
+get_number <- function(patterns, strs) {
+  out <- integer(length(strs))
 
-  op_2 <- switch(
-    match.arg(which),
-    min = which.min,
-    max = which.max,
-  )
-
-  inner_fn <- function(pattern, strs) {
-    out <- gregexec(pattern, strs)
-    out <- vapply(out, op_1, integer(1))
-    return(out)
+  inner_fx <- function(pattern, str) {
+    out <- gregexpr(pattern, str)
+    out[[1]][out[[1]] == -1] <- NA_integer_
+    return(out[[1]])
   }
 
-  reg_result <- vapply(patterns, inner_fn, integer(length(strs)), strs)
+  for (i in seq_along(strs)) {
+    # Determine first number
+    reg_results <- lapply(patterns, inner_fx, strs[i])
 
-  reg_result[reg_result == -1] <- NA_integer_
+    first_digit <- which.min(vapply(reg_results, min, integer(1)))
+    last_digit <- which.max(vapply(reg_results, max, integer(1)))
 
-  return(apply(reg_result, 1, op_2))
-}
+    out[i] <- as.integer(paste(first_digit, last_digit, sep = ""))
+  }
 
-assemble_number <- function(lk, input) {
-  first_num <- get_number(paste(names(lk), lk, sep = "|"), input, "min")
-  last_num <- get_number(paste(names(lk), lk, sep = "|"), input, "max")
-
-  out <- paste(first_num, last_num, sep = "")
-
-  return(as.numeric(out))
+  return(out)
 }
 
 # === check =================
-clean_data <- assemble_number(numbers_lk, raw_data)
+clean_data <- get_number(paste(names(numbers_lk), numbers_lk, sep = "|"), raw_data)
 
 sum(clean_data)
 # 54980 # Wrong
