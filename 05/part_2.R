@@ -1,3 +1,6 @@
+# Ok, it's a standard library though
+library(parallel)
+
 # === Load data ==============================================
 data_pull <- function(path = "05/data") {
   con <- file(path, "r")
@@ -49,7 +52,9 @@ eval_source_in_map <- function(input, map) {
 
   while (i <= nrow(map)) {
     if (input >= map[i, 2] && input <= map[i, 2] + map[i, 3]) {
+      # found
       dest <- map[i, 1] + (input - map[i, 2])
+      break
     }
 
     i <- i + 1L
@@ -87,40 +92,6 @@ seed_range_start <- seed_lines[seq(1, length(seed_lines), by = 2)]
 seed_range_spans <- seed_lines[seq(2, length(seed_lines), by = 2)]
 seed_range_ends <- seed_range_start + seed_range_spans
 
-seed_range_lk <- cbind(
-  start = seed_range_start,
-  end = seed_range_ends
-)
-
-seed_search_space <- c(min(seed_range_lk[, "start"]), max(seed_range_lk[, "end"]))
-
-# Refine sample by discarding impossible starts in search space
-keep_particle <- function(x, spans_dict) {
-  i <- 0L
-  keep <- FALSE
-
-  # Sort for maximum speed
-  spans_dict <- spans_dict[order(spans_dict[, "start"]), ]
-
-  while (i < nrow(spans_dict)) {
-    i <- i + 1
-    # If beyond current span, go to next
-    if (x > spans_dict[i, "end"]) {
-      next
-    }
-
-    # reaching here it must be less than
-    # the end of the range, so test if it's
-    # within the range
-    if (x >= spans_dict[i, "start"]) {
-      # falls within a range, keep
-      keep <- TRUE
-    }
-  }
-
-  return(keep)
-}
-
 # === Returns a list of matrices ====================================
 # which is a structured representation of the data
 maps <- build_maps(raw_data)
@@ -129,10 +100,10 @@ maps <- build_maps(raw_data)
 # LOL I guess with a search space over 3T and weak programming skills
 # this will have to do.
 
-seed_search <- function(seed_space, seed_range_lk, maps, trials = 1e4, sample_size = 1e5, saddle_point_timeout = 10) {
+seed_search <- function(seed_start, seed_end, map_list = maps, trials = 5e4, sample_size = 1e5, saddle_point_timeout = 100) {
   
-  current_best_location <- Inf
-  current_best_input <- Inf
+  current_best_location <- 20358613
+  current_best_input <- 22956591
   i <- 1
   rounds_without_improvement <- 0L
 
@@ -140,24 +111,25 @@ seed_search <- function(seed_space, seed_range_lk, maps, trials = 1e4, sample_si
     # Some running data
     print(
       sprintf(
-        "Trial %d: Current best seed %.0f Current best location %.0f",
+        "[%s] (worker %s) Trial %d| Current best seed: %.0f Current best location: %.0f",
+        Sys.time(),
+        Sys.getpid(),
         i,
         current_best_input,
         current_best_location
       )
     )
 
-    samples <- sample(seed_space[1]:seed_space[2], sample_size)
-    filtered_samples <- samples[vapply(samples, keep_particle, logical(1), seed_range_lk)]
+    samples <- sample(seed_start:seed_end, sample_size)
 
-    locations <- reduce_maps(filtered_samples, maps)
+    locations <- reduce_maps(samples, map_list)
 
     current_min <- min(locations)
 
     if (current_min < current_best_location) {
       rounds_without_improvement <- 0L
       current_best_location <- current_min
-      current_best_input <- filtered_samples[which.min(locations)]
+      current_best_input <- samples[which.min(locations)]
     } else {
       rounds_without_improvement <- rounds_without_improvement + 1L
       if (rounds_without_improvement > saddle_point_timeout) {
@@ -172,5 +144,25 @@ seed_search <- function(seed_space, seed_range_lk, maps, trials = 1e4, sample_si
   return(c("seed" = current_best_input, "location" = current_best_location))
 }
 
-# We could run this in parallel
-optimal_seed <- seed_search(seed_search_space, seed_range_lk, maps, saddle_point_timeout = 50L)
+# === Searching space in parallel ========================
+cluster <- makeCluster(
+  length(seed_range_start),
+  "PSOCK",
+  outfile = "out.txt"
+)
+
+# Export globals to workers
+clusterExport(cluster, c("reduce_maps", "maps", "eval_source_in_map"))
+
+# Will this be the ticket?
+optimal_seed <- tryCatch(
+  clusterMap(
+    cluster,
+    seed_search,
+    seed_start = seed_range_start,
+    seed_end = seed_range_ends
+  ),
+  finally = stopCluster(cluster)
+)
+
+print(min(vapply(optimal_seed, \(x) x["location"], numeric(1))))

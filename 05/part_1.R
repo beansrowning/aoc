@@ -50,6 +50,7 @@ eval_source_in_map <- function(input, map) {
   while (i <= nrow(map)) {
     if (input >= map[i, 2] && input <= map[i, 2] + map[i, 3]) {
       dest <- map[i, 1] + (input - map[i, 2])
+      break
     }
 
     i <- i + 1L
