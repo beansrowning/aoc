@@ -8,17 +8,14 @@ data_pull <- function(path = "06/data") {
   list_elem <- regmatches(raw_text, regexec("(.*):(.*)", raw_text))
 
   out <- list_elem |>
-    lapply(\(x) setNames(list(as.integer(strsplit(x[3], "\\s+")[[1]][-1])), x[2])) |>
-    unlist(recursive = FALSE)
+    lapply(\(x) setNames(as.numeric(paste(gsub("\\s+", "", x[3]), collapse = "")), x[2])) |>
+    unlist()
 
   return(out)
 }
 
 raw_data <- data_pull()
-
-
-v0 <- 0
-a <- 1 # (per sec held down, must be int)
+# 4e14 distance
 
 # The formula of the race can be represented as a quadratic, where the roots
 # define the minimum and maximum time one can wait and still beat the time
@@ -48,7 +45,6 @@ seq_to_len <- function(start, stop) {
   stop - start + 1
 }
 
-total_ways <- Map(find_roots, raw_data[[1]], raw_data[[2]]) |>
-  vapply(\(x) x[2] - x[1] + 1, numeric(1)) |>
-  (\(x) Reduce(`*`, x))()
+total_ways <- find_roots(raw_data[[1]], raw_data[[2]]) |>
+  (\(x) x[2] - x[1] + 1)()
 
