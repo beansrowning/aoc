@@ -39,18 +39,31 @@ parsed_data <- data_pull(num_lk)
 winnings <- function(hand) {
   distinct_n <- length(unique(hand))
 
+  # Scores:
+  # five-of-a-kind: 7
+  # four-of-a-kind: 6
+  # full house: 5
+  # three-of-a-kind: 4
+  # two-pair: 3
+  # one-pair: 2
+  # high card: 1
+
   # Four-of-a-kind if 1 (individual card) or 4 (one of the 4)
   # Full house if 2 (one of the pair) or 3 (one of the 3-of-a-kind)
-  four_distinct_case <- \(x) switch(length(x[x == x[1]]), 4, 3, 3, 4)
-  three_distinct_case <- \(x) c(2L, 3L)[any(tabulate(x) == 3) + 1]
+  four_distinct_case <- \(x) switch(length(x[x == x[1]]), 6, 5, 5, 6)
+
+  # Three-of-a-kind if one card is repeated 3x
+  # two pair otherwise
+  three_distinct_case <- \(x) c(3, 4)[any(tabulate(x) == 3) + 1]
 
   switch(
     distinct_n,
-    5, # 1 distinct number has to be 5-of-a-kind
+    7, # 1 distinct number has to be 5-of-a-kind
     four_distinct_case(hand), # disaggregate four-of-a-kind + 1 or full house
-    three_distinct_case(hand),
-    2, # Must be exactly 1 pair
-    1 # high card
+    three_distinct_case(hand), # disaggregate 3-of-a-kind from two-pair
+    2, # Must be exactly 1 pair (4 distinct cards, 1 must repeat)
+    # high card (encoding the highest card as a fractional component out of 1 + n)
+    1
   )
 }
 
@@ -79,4 +92,4 @@ full_mat_sort <- full_mat[
 ]
 
 total_winnings <- sum(full_mat_sort[, "bet"] * rev(seq_len(nrow(full_mat_sort))))
-# 249134802 # wrong
+# 249204891
