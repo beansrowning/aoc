@@ -48,7 +48,6 @@ parallel_non_random_walk <- function(instructions, graph) {
 
     if (all(grepl("Z$", current_nodes))) {
       # If we arrived, break
-      browser()
       break
     }
     # if not, keep going
