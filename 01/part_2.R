@@ -23,33 +23,30 @@ numbers <- c(
   "nine"
 )
 
+reg <- sprintf("(?=(%s|\\d))", paste(numbers, collapse = "|"))
+
 numbers_lk <- setNames(as.character(1:9), numbers)
+numbers_lk <- c(numbers_lk, setNames(1:9, as.character(1:9)))
 
 # === function ================================
-get_number <- function(patterns, strs) {
+get_number <- function(pattern, strs) {
   out <- integer(length(strs))
 
-  inner_fx <- function(pattern, str) {
-    out <- gregexpr(pattern, str)
-    out[[1]][out[[1]] == -1] <- NA_integer_
-    return(out[[1]])
-  }
+  all_matches <- regmatches(strs, gregexec(pattern, strs, perl = TRUE))
 
-  for (i in seq_along(strs)) {
-    # Determine first number
-    reg_results <- lapply(patterns, inner_fx, strs[i])
+  for (i in seq_along(all_matches)) {
+    # extract numbers
+    nums <- all_matches[[i]][2, c(1, ncol(all_matches[[i]]))]
+    nums <- as.integer(numbers_lk[nums])
 
-    first_digit <- which.min(vapply(reg_results, min, integer(1)))
-    last_digit <- which.max(vapply(reg_results, max, integer(1)))
-
-    out[i] <- as.integer(paste(first_digit, last_digit, sep = ""))
+    out[i] <- (10 * nums[1]) + nums[2]
   }
 
   return(out)
 }
 
 # === check =================
-clean_data <- get_number(paste(names(numbers_lk), numbers_lk, sep = "|"), raw_data)
+clean_data <- get_number(reg, raw_data)
 
 sum(clean_data)
 # 54980
