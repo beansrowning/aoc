@@ -1,0 +1,23 @@
+name: Check Advent-of-Code Solutions
+
+on: [push, pull_request]
+
+jobs:
+  Check-Day:
+    runs-on: ubuntu-latest
+    container: r-base:latest
+    name: ${{ matrix.days.folder }}
+    strategy:
+      matrix:
+        days:
+        - {folder: "01", solution_1: 55816, solution_2: 54980}
+        - {folder: "02", solution_1: 2913, solution_2: 55593}
+    steps:
+    - uses: actions/checkout@master
+    - name: Check Part 1
+      run: |
+        grep -q "${{ matrix.days.solution_1 }}" <<< "$(Rscript ${{ matrix.days.folder }}/part_1.R)"
+    - name: Check Part 2
+      run: |
+        grep -q "${{ matrix.days.solution_2 }}" <<< "$(Rscript ${{ matrix.days.folder }}/part_2.R)"
+    
