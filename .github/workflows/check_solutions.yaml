@@ -17,7 +17,9 @@ jobs:
     - name: Check Part 1
       run: |
         grep -q "${{ matrix.days.solution_1 }}" <<< "$(Rscript ${{ matrix.days.folder }}/part_1.R)"
+      shell: bash {0}
     - name: Check Part 2
       run: |
         grep -q "${{ matrix.days.solution_2 }}" <<< "$(Rscript ${{ matrix.days.folder }}/part_2.R)"
+      shell: bash {0}
     
