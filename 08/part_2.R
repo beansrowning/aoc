@@ -1,3 +1,6 @@
+# For math helpers
+source("R/util.R")
+
 # === Load data ==============================================
 data_pull <- function(lookup, path = "08/data") {
   con <- file(path, "r")
@@ -23,41 +26,52 @@ data_pull <- function(lookup, path = "08/data") {
 
 data <- data_pull()
 
-parallel_non_random_walk <- function(instructions, graph) {
+# Based on graph viz, each A->Z must be cyclic, with a deterministic cycle length
+# So we can just determine cycle length and take LCM
+determine_cycle_lengths <- function(instructions, graph) {
   
-  current_nodes <- dimnames(graph)[[3]][grepl("A$", dimnames(graph)[[3]])]
-  prev_nodes <- vector("character", length(current_nodes))
+  start_nodes <- dimnames(graph)[[3]][grepl("A$", dimnames(graph)[[3]])]
+  current_nodes <- start_nodes
 
   step_direction <- ""
-  i <- 1L
+  i <- rep(1L, length = length(start_nodes))
   n_instructions <- length(instructions)
 
-  repeat {
+  for (idx in seq_along(start_nodes)) {
+      repeat {
 
-    instruction_i <- i %% n_instructions
-    if (instruction_i == 0) {
-      instruction_i <- n_instructions
+      instruction_i <- i[idx] %% n_instructions
+      if (instruction_i == 0) {
+        instruction_i <- n_instructions
+      }
+
+      # Move according to our instructions, looping around, if needed
+      step_direction <- instructions[instruction_i]
+
+      # find the next node based on the current node and step direction
+      current_nodes[idx] <- unname(graph[1, step_direction, current_nodes[idx]])
+
+      if (grepl("Z$", current_nodes[idx])) {
+        # If we arrived, break
+        break
+      }
+      # if not, keep going
+      i[idx] <- i[idx] + 1L
     }
-
-    # Move according to our instructions, looping around, if needed
-    step_direction <- instructions[instruction_i]
-
-    # find the next node based on the current node and step direction
-    prev_nodes <- current_nodes
-    current_nodes <- unname(graph[1, step_direction, prev_nodes])
-
-    if (all(grepl("Z$", current_nodes))) {
-      # If we arrived, break
-      break
-    }
-    # if not, keep going
-    i <- i + 1L
   }
 
   # Return how many steps we took
   return(i)
 }
 
-val <- parallel_non_random_walk(data[["instructions"]], data[["graph"]])
+# Determine cycle length for each graph
+val <- determine_cycle_lengths(data[["instructions"]], data[["graph"]])
 
-val
+# Find least common multiple
+# must convert to double, or int will overflow
+val_lcm <- do.call(lcm, as.list(as.numeric(val)))
+
+# Have to expand the scipen to print it all
+options(scipen = 14)
+val_lcm
+# 16342438708751
