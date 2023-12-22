@@ -1,76 +1,58 @@
+library(ggplot2)
 
 # === Params =================================================
 lookup <- c(
-  "R" = "H",
-  "L" = "H",
-  "U" = "V",
-  "D" = "V"
+  "R" = 0i+1,
+  "L" = 0i-1,
+  "U" = 1i+0,
+  "D" = -1i+0
 )
 
 
 # === Load data ==============================================
-data_pull <- function(path = "18/sample") {
+data_pull <- function(path = "18/data") {
   con <- file(path, "r")
   on.exit(close(con))
 
-  raw_text <- strsplit(readLines(con), " ")
-
-  out <- setNames(
-    do.call(rbind.data.frame, args = raw_text),
-    c("direction", "distance", "color")
-  )
-  out[["distance"]] <- as.integer(out[["distance"]])
-  out[["color"]] <- gsub("[\\(|\\)]", "", out[["color"]]) 
-
-  out[out[["direction"]] %in% c("L", "U"), "distance"] <-  -out[["distance"]][out[["direction"]] %in% c("L", "U")]
-  out[["direction"]] <- lookup[out[["direction"]]]
-
+  out <- strsplit(readLines(con), " ")
   return(out)
 }
 
 # Pull instructions data frame
 data <- data_pull()
 
-# Determine x/y extents
-extents <- split(data, ~direction) |>
-  lapply(\(x) Reduce(`+`, x[["distance"]], accumulate = TRUE)) |>
-  vapply(max, integer(1))
+# To complex
+vec <- vapply(data, \(x) as.integer(x[2]) * lookup[x[1]], complex(1))
+vec <- setNames(vec, vapply(data, \(x) gsub("[\\(|\\)]", "", x[3]), character(1)))
 
-extents <- extents + 1L
+# Each point is the result of the vector lining things up
+# tip-to-tail
+points <- Reduce(`+`, vec, accumulate = TRUE)
 
-# Build matrix
-char_matrix <- matrix(NA_character_, nrow = extents[2], ncol = extents[1])
+# Compute circumference
+b <- vapply(data, \(x) as.integer(x[2]), integer(1)) |>
+  sum()
 
-i <- j <- old_i <- old_j <- 1
 
-for (row in split(data, seq_len(nrow(data)))) {
-  browser()
-  if (row[["direction"]] == "H") {
-    old_j <- j
-    j <- j + row[["distance"]]
-    j_range <- do.call(seq, as.list(range(old_j, j)))
+# Shoelace Theorem
+area <- double(1)
 
-    char_matrix[i, j_range] <- row[["color"]]
-  } else {
-    old_i <- i
-    i <- i + row[["distance"]]
-    i_range <- do.call(seq, as.list(range(old_i, i)))
-
-    char_matrix[i_range, j] <- row[["color"]]
-  }
+for (i in seq_along(points)) {
+  y_min <- ifelse(i - 1 == 0, points[length(points)], points[i - 1])
+  y_max <- ifelse(i + 1 > length(points), points[1], points[i + 1])
+  area <- area + (Re(points[i]) * (Im(y_max) - Im(y_min)))
 }
 
-# Fill east-bound
-for (idx in seq_len(nrow(char_matrix))) {
+area <- abs(area) * .5
 
-  vals <- na.omit(unique(char_matrix[idx, ]))
-  n_unique <- length(vals)
-  filled_pos <- cumsum(!is.na(char_matrix[idx, ]))
+# Pick's Theorem
+interior <- area - (b / 2) + 1
 
-  fill_jdx <-  filled_pos > 0 & filled_pos != max(filled_pos) & is.na(char_matrix[idx, ])
-  fill_patch <- vals[filled_pos[fill_jdx]]
+total_area <- b + interior
+print(total_area)
 
-  char_matrix[idx, fill_jdx] <- fill_patch
-}
-
-print(sum(!is.na(char_matrix)))
+# === Plot our task =======================================
+ggplot(data.frame(NULL), aes(x = Re(points), y = Im(points))) +
+  geom_path(aes(color = names(vec), group = 1), show.legend = FALSE) +
+  scale_color_identity() +
+  theme_bw()
