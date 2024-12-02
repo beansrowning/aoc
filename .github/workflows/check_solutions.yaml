@@ -17,7 +17,7 @@ jobs:
         # - {folder: "05", solution_1: 31599214, solution_2: }
         - {folder: "06", solution_1: 2449062, solution_2: 33149631}
         - {folder: "07", solution_1: 249204891, solution_2: 249666369}
-        # - {folder: "08", solution_1: 19951, solution_2: }
+        - {folder: "08", solution_1: 19951, solution_2: 16342438708751}
         - {folder: "09", solution_1: 1731106378, solution_2: 1087}
 
     steps:

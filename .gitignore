@@ -1,2 +1,6 @@
+# AoC Data Files
 data
+sample
+
+# Parallel stdout
 out.txt
